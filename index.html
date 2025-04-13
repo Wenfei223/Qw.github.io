@@ -19,11 +19,18 @@
             color: white;
             padding: 1rem;
             display: flex;
+            justify-content: space-between;
             align-items: center;
         }
         .header img {
             height: 40px;
             margin-right: 1rem;
+        }
+        .banned-counter {
+            font-size: 1.1em;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 10px;
+            border-radius: 4px;
         }
         .container {
             display: grid;
@@ -69,6 +76,11 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         .ban-btn {
             background: var(--primary-red);
@@ -90,8 +102,10 @@
 </head>
 <body>
     <div class="header">
-        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9ImhHRiU4MEElOEMlOUMlODQlQkMlODQlQjclOEQlQjIlQTElQTMlQjYlQTclQjglQjQlQjAlQjIlQTQiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDo4MjRGRTg0QzA3NjgxMUUzQkZGNDhENEJFQjM2OTcyRiIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDo4MjRGRTg0RDA3NjgxMUUzQkZGNDhENEJFQjM2OTcyRiI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOjgyNEZFODRBMDc2ODExRTNCRkY0OEQ0QkVCMzY5NzJGIiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOjgyNEZFODRCMDc2ODExRTNCRkY0OEQ0QkVCMzY5NzJGIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+Y7ZvUAAAA2hJREFUeNrEl21IU1EYx8+9d1vjRlZGU0stP5ShlqVl0YdIaR8iSqIPUWRFEEUfKjKLPkRRH6IPfYkIoiAKoqAPUfQhCjPNj5lZWWqZb7PM3GzO6e7u6X/uc7TL3N3mBu7hx733nOc8z+//nHPP0SilZCmHTCaLn5gQQv6pAOecxWLB6XTC4/FAp9MhKSkJsbGxEEIsXIDneXj//v0YGhr6S4DJZMLGjRtRUFCgBP6XgMfjwe3bt1FdXY3h4eF/CLDZbKipqUFpaSkKCwuVwLwFOI5DVVUVampq4HQ65xTwer2ora1FWVkZtm/fDp1ON7cA5a+pqUF9fT3cbve8BSjq6+tRVlaGHTt2wGg0hhag/NXV1WhqagopMFuAora2FmVlZdi1a1dwAcpfVVWF5ubmeQvMFGhoaEB5eTl2794Ng8EwtwDlr6ysRGtr64IFKG7duoXy8nLs3bs3UIDyV1RUoK2tbdECFHfu3EF5eTn27ds3LUD5L168iPb29iUToLh37x7Ky8tx4MCBKYELFy6go6NjSQUoHj58iPLychw6dAh6vR7nz59HZ2fnkgtQPH78GOXl5Th8+DCOHj2Krq6ukALBYrYAxdOnT1FWVgZRFDE6OrrkAhTPnz/HyZMn4fP5MDAwsCABitkCFC9evMCpU6fgdDphsViWRIDi1atXOHPmDEZGRtDT07MoAYrXr1/j7NmzcDgc6O7uXrQAxdu3b3Hu3DnY7XZ0dXUtWoDiw4cPOH36NMbGxtDZ2bloAYqPHz/i5MmTsNls6OjoWLQAxefPn3HixAnY7Xa0t7cvWoDi69evOH78OKxWK9ra2hYtQPHt2zccO3YMNpsNra2tixag+PHjB44cOQKLxYKWlpZFC1D8/PkTR48ehdlsRlNT06IFKH79+oXDhw9jfHwcjY2Nixag6Ovrw6FDhzA5OYmGhgYwWZZDClDMPg4m4Pf70d/fj4SEBOh0OjDGwBj7W4D+HwgE0NfXh+TkZERHR4MxBs75lAD9MRgMSE1NhdFoBGMMQgglwDlXhBBCEBUVhYyMDERGRoIxBiGEElC3QAihLggh1C2g1+sDBSYnJ9Hb24uUlBRERESoW6AK0B+DwYD09HRERESoW6AKqAKMMSQmJiI2NlbdAlVAFaCUkpKS1C1QBWYKMMYQHx+PuLg4dQtUgZkCjDHExcUhPj5e3QJVYKYApRQbG4uEhAR1C1SBmQKUUmpqKhhj6haowswtoJSamqpuwV8ClFJsbCySk5PVLQgqoC4IIcAYCxSglGJiYpCSkqJuQVABSkkIEbwJ6YIQIrgJqQIzTYgxFrwJqQIzTYgxFtyEVIGZJsQYC25CqsBME2KMBTchVWCmCTHGgpuQKjDThBhjwU1IFZhpQoyx4CakCsw0IcZYcBNSBWaaEGMsuAmpAjNNiDEW3IRUgZkmxBgLbkKqwEwTYowFNyFVYKYJMcaCm5AqMNOEGGPBTUgVmGlCjLHgJqQKzDQhxlhwE1IFZpoQYyy4CakCM02IMRbchFSBmSbEGAvehFSB/wQYANukfe1oc2gTAAAAAElFTkSuQmCC" alt="国徽">
         <h1>国家网络空间安全治理系统</h1>
+        <div class="banned-counter">
+            累计封禁IP数量：<span id="bannedCount">0</span>
+        </div>
     </div>
     
     <div class="container">
@@ -137,10 +151,12 @@
 
         let bannedIPs = JSON.parse(localStorage.getItem('bannedIPs') || '{}');
 
+        // 生成随机IP
         function generateIP() {
             return Array.from({length:4}, () => Math.floor(Math.random() * 256)).join('.');
         }
 
+        // 生成模拟数据
         function generateData() {
             const data = [];
             const ipPool = new Set();
@@ -165,45 +181,69 @@
             return data;
         }
 
+        // 渲染表格
         function renderTables() {
             const reviewData = generateData();
             const reviewTbody = document.querySelector('#reviewTable tbody');
             const bannedTbody = document.querySelector('#bannedTable tbody');
             
+            // 更新封禁计数器
+            document.getElementById('bannedCount').textContent = Object.keys(bannedIPs).length;
+
+            // 渲染待审核列表
             reviewTbody.innerHTML = reviewData.map(item => `
                 <tr>
                     <td>${item.ip}</td>
                     <td><span class="status ${item.status === '正常' ? 'normal' : 'violation'}">${item.status}</span></td>
                     <td>${item.reasons.map(r => `<span class="reason-tag">${r}</span>`).join('')}</td>
-                    <td><button class="ban-btn" onclick="banIP('${item.ip}', ${JSON.stringify(item.reasons)})" ${item.status === '正常' ? 'disabled' : ''}>封禁</button></td>
+                    <td>
+                        <button 
+                            class="ban-btn" 
+                            onclick="banIP('${item.ip}', ${JSON.stringify(item.reasons)})" 
+                            ${item.status === '正常' ? 'disabled' : ''}
+                        >
+                            封禁
+                        </button>
+                    </td>
                 </tr>
             `).join('');
 
+            // 渲染已封禁列表
             bannedTbody.innerHTML = Object.entries(bannedIPs).map(([ip, reasons]) => `
                 <tr>
                     <td>${ip}</td>
                     <td>${reasons.map(r => `<span class="reason-tag">${r}</span>`).join('')}</td>
-                    <td><button class="unban-btn" onclick="unbanIP('${ip}')">解封</button></td>
+                    <td>
+                        <button class="unban-btn" onclick="unbanIP('${ip}')">
+                            解封
+                        </button>
+                    </td>
                 </tr>
             `).join('');
         }
 
+        // 封禁操作
         function banIP(ip, reasons) {
-            bannedIPs[ip] = reasons;
-            localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
-            renderTables();
+            if (!bannedIPs[ip]) {
+                bannedIPs[ip] = reasons;
+                localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
+                renderTables();
+            }
         }
 
+        // 解封操作
         function unbanIP(ip) {
-            delete bannedIPs[ip];
-            localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
-            renderTables();
+            if (bannedIPs[ip]) {
+                delete bannedIPs[ip];
+                localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
+                renderTables();
+            }
         }
 
-        // 初始化渲染
+        // 初始化
         renderTables();
-        // 每小时自动刷新数据
-        setInterval(renderTables, 3600000);
+        // 每5分钟刷新数据
+        setInterval(renderTables, 300000);
     </script>
 </body>
 </html>
