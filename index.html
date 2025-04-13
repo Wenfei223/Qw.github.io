@@ -3,59 +3,54 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>网络安全监管系统 - 国家网络空间治理中心</title>
+    <title>网络安全监管系统</title>
     <style>
         :root {
-            --primary-red: #c7000a;
-            --secondary-red: #e33d4c;
+            --main-red: #c7000a;
+            --dark-red: #a00000;
+            --light-bg: #fff3f3;
         }
         body {
             font-family: "Microsoft YaHei", sans-serif;
             margin: 0;
-            background: #f5f5f5;
+            background: var(--light-bg);
         }
         .header {
-            background: var(--primary-red);
+            background: var(--main-red);
             color: white;
-            padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header img {
-            height: 40px;
-            margin-right: 1rem;
-        }
-        .banned-counter {
-            font-size: 1.1em;
-            background: rgba(255,255,255,0.2);
-            padding: 5px 10px;
-            border-radius: 4px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
         .container {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            padding: 2rem;
+            gap: 20px;
+            padding: 20px;
         }
         .panel {
             background: white;
-            border: 1px solid var(--primary-red);
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 15px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
+            margin-top: 10px;
         }
         th {
-            background: var(--primary-red);
+            background: var(--main-red);
             color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
         }
         .status {
             display: inline-block;
@@ -64,54 +59,44 @@
             font-size: 0.9em;
         }
         .normal {
-            background: #28a745;
-            color: white;
+            background: #e8f5e9;
+            color: #2e7d32;
         }
         .violation {
-            background: #dc3545;
-            color: white;
+            background: #ffebee;
+            color: #c62828;
+        }
+        .banned {
+            background: #f5f5f5;
+            color: #616161;
         }
         button {
-            padding: 6px 12px;
             border: none;
+            padding: 6px 12px;
             border-radius: 4px;
             cursor: pointer;
-            transition: opacity 0.3s;
-        }
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
+            transition: 0.3s;
         }
         .ban-btn {
-            background: var(--primary-red);
+            background: var(--dark-red);
             color: white;
         }
         .unban-btn {
-            background: #28a745;
+            background: #2e7d32;
             color: white;
-        }
-        .reason-tag {
-            display: inline-block;
-            padding: 2px 6px;
-            margin: 2px;
-            background: #ffd700;
-            border-radius: 3px;
-            font-size: 0.8em;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>国家网络空间安全治理系统</h1>
-        <div class="banned-counter">
-            累计封禁IP数量：<span id="bannedCount">0</span>
-        </div>
+        <h1>网络安全监管系统</h1>
+        <p>维护网络空间清朗 保障国家信息安全</p>
     </div>
     
     <div class="container">
         <div class="panel">
-            <h2>待审核IP列表</h2>
-            <table id="reviewTable">
+            <h2>待审核 IP（<span id="reviewCount">0</span>）</h2>
+            <table>
                 <thead>
                     <tr>
                         <th>IP地址</th>
@@ -120,13 +105,13 @@
                         <th>操作</th>
                     </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody id="reviewBody"></tbody>
             </table>
         </div>
         
         <div class="panel">
-            <h2>已封禁IP列表</h2>
-            <table id="bannedTable">
+            <h2>已封禁 IP（<span id="bannedCount">0</span>）</h2>
+            <table>
                 <thead>
                     <tr>
                         <th>IP地址</th>
@@ -134,13 +119,13 @@
                         <th>操作</th>
                     </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody id="bannedBody"></tbody>
             </table>
         </div>
     </div>
 
     <script>
-        const VIOLATIONS = [
+        const REASONS = [
             '色情', '开盒', '赌博', '诈骗', '恐吓', '暴力', 
             '血腥', '叛国', '黑客', '毒品', '走私', '造假',
             '侵权', '间谍', '洗钱', '恐怖主义', '谣言', '恶意软件',
@@ -149,101 +134,92 @@
             '侵犯隐私', '非法交易', '违禁品', '虚假信息'
         ];
 
-        let bannedIPs = JSON.parse(localStorage.getItem('bannedIPs') || '{}');
+        let reviewList = [];
+        let bannedList = JSON.parse(localStorage.getItem('bannedList')) || [];
 
         // 生成随机IP
         function generateIP() {
-            return Array.from({length:4}, () => Math.floor(Math.random() * 256)).join('.');
+            return Array.from({length:4}, () => 
+                Math.floor(Math.random() * 256)).join('.');
         }
 
-        // 生成模拟数据
-        function generateData() {
-            const data = [];
-            const ipPool = new Set();
+        // 生成审核列表
+        function generateReviewList() {
+            const existingIPs = new Set(bannedList.map(b => b.ip));
+            const normalRatio = Math.random() * (0.89 - 0.28) + 0.28;
             
-            while(ipPool.size < 500) {
+            while(reviewList.length < 500) {
                 const ip = generateIP();
-                if(!bannedIPs[ip] && !ipPool.has(ip)) {
-                    ipPool.add(ip);
-                    
-                    const isViolation = Math.random() > 0.28;
-                    const reasons = isViolation ? 
-                        Array.from({length: Math.ceil(Math.random()*2)}, 
-                            () => VIOLATIONS[Math.floor(Math.random()*VIOLATIONS.length)]) : [];
-                    
-                    data.push({
+                if (!existingIPs.has(ip)) {
+                    const isNormal = Math.random() < normalRatio;
+                    reviewList.push({
                         ip,
-                        status: isViolation ? '违规' : '正常',
-                        reasons: [...new Set(reasons)]
+                        status: isNormal ? '正常' : '违规',
+                        reason: isNormal ? '' : REASONS[Math.floor(Math.random() * REASONS.length)]
                     });
                 }
             }
-            return data;
+            reviewList = reviewList.slice(0, 500);
         }
 
         // 渲染表格
-        function renderTables() {
-            const reviewData = generateData();
-            const reviewTbody = document.querySelector('#reviewTable tbody');
-            const bannedTbody = document.querySelector('#bannedTable tbody');
-            
-            // 更新封禁计数器
-            document.getElementById('bannedCount').textContent = Object.keys(bannedIPs).length;
-
-            // 渲染待审核列表
-            reviewTbody.innerHTML = reviewData.map(item => `
+        function render() {
+            // 渲染审核列表
+            const reviewBody = document.getElementById('reviewBody');
+            reviewBody.innerHTML = reviewList.map(ip => `
                 <tr>
-                    <td>${item.ip}</td>
-                    <td><span class="status ${item.status === '正常' ? 'normal' : 'violation'}">${item.status}</span></td>
-                    <td>${item.reasons.map(r => `<span class="reason-tag">${r}</span>`).join('')}</td>
+                    <td>${ip.ip}</td>
+                    <td><span class="status ${ip.status === '正常' ? 'normal' : 'violation'}">
+                        ${ip.status}
+                    </span></td>
+                    <td>${ip.reason || '-'}</td>
                     <td>
-                        <button 
-                            class="ban-btn" 
-                            onclick="banIP('${item.ip}', ${JSON.stringify(item.reasons)})" 
-                            ${item.status === '正常' ? 'disabled' : ''}
-                        >
-                            封禁
-                        </button>
+                        ${ip.status === '违规' ? 
+                            `<button class="ban-btn" onclick="banIP('${ip.ip}', '${ip.reason}')">封禁</button>` : 
+                            '-'}
                     </td>
                 </tr>
             `).join('');
 
-            // 渲染已封禁列表
-            bannedTbody.innerHTML = Object.entries(bannedIPs).map(([ip, reasons]) => `
+            // 渲染封禁列表
+            const bannedBody = document.getElementById('bannedBody');
+            bannedBody.innerHTML = bannedList.map(ip => `
                 <tr>
-                    <td>${ip}</td>
-                    <td>${reasons.map(r => `<span class="reason-tag">${r}</span>`).join('')}</td>
-                    <td>
-                        <button class="unban-btn" onclick="unbanIP('${ip}')">
-                            解封
-                        </button>
-                    </td>
+                    <td>${ip.ip}</td>
+                    <td>${ip.reason}</td>
+                    <td><button class="unban-btn" onclick="unbanIP('${ip.ip}')">解封</button></td>
                 </tr>
             `).join('');
+
+            // 更新计数器
+            document.getElementById('reviewCount').textContent = reviewList.length;
+            document.getElementById('bannedCount').textContent = bannedList.length;
         }
 
         // 封禁操作
-        function banIP(ip, reasons) {
-            if (!bannedIPs[ip]) {
-                bannedIPs[ip] = reasons;
-                localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
-                renderTables();
+        function banIP(ip, reason) {
+            if (!bannedList.some(b => b.ip === ip)) {
+                bannedList.push({ ip, reason });
+                localStorage.setItem('bannedList', JSON.stringify(bannedList));
+                reviewList = reviewList.filter(item => item.ip !== ip);
+                render();
             }
         }
 
         // 解封操作
         function unbanIP(ip) {
-            if (bannedIPs[ip]) {
-                delete bannedIPs[ip];
-                localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
-                renderTables();
-            }
+            bannedList = bannedList.filter(b => b.ip !== ip);
+            localStorage.setItem('bannedList', JSON.stringify(bannedList));
+            render();
         }
 
         // 初始化
-        renderTables();
-        // 每5分钟刷新数据
-        setInterval(renderTables, 300000);
+        function init() {
+            generateReviewList();
+            render();
+        }
+
+        init();
     </script>
 </body>
 </html>
