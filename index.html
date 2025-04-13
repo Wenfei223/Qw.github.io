@@ -3,210 +3,187 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>网络安全态势感知系统</title>
+    <title>网络安全卫士管理系统</title>
     <style>
         :root {
-            --primary-red: #de2910;
-            --secondary-red: #ff4d4f;
-            --light-bg: #fffbf0;
+            --primary-red: #d32f2f;
+            --dark-red: #b71c1c;
+            --light-red: #ffebee;
         }
         body {
-            font-family: "Microsoft YaHei", sans-serif;
-            background: var(--light-bg);
+            font-family: "Microsoft Yahei", sans-serif;
             margin: 0;
-            padding: 20px;
+            background: var(--light-red);
         }
         .header {
-            background: var(--primary-red);
+            background: var(--dark-red);
             color: white;
             padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
-        .stats {
+        .container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
         }
-        .stat-item {
+        .panel {
             background: white;
-            padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
         }
-        .ip-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
         }
-        .ip-card {
-            background: white;
-            padding: 15px;
-            border-left: 4px solid transparent;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.2s;
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
         }
-        .ip-card.banned {
-            border-left-color: var(--primary-red);
-            background: #ffeaea;
-        }
-        .violation-tag {
-            font-size: 0.8em;
-            padding: 2px 8px;
-            border-radius: 12px;
-            margin-left: 10px;
-        }
-        .red-tag {
-            background: var(--secondary-red);
-            color: white;
-        }
-        button {
-            padding: 4px 12px;
-            border: none;
-            border-radius: 15px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .ban-btn {
+        th {
             background: var(--primary-red);
             color: white;
         }
-        .unban-btn {
-            background: #52c41a;
-            color: white;
+        .violation-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
         }
+        .danger { background: #ff1744; color: white; }
+        .warning { background: #ff9100; color: white; }
+        button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .ban-btn { background: var(--primary-red); color: white; }
+        .unban-btn { background: #4caf50; color: white; }
     </style>
 </head>
 <body>
-    <div id="app">
-        <div class="header">
-            <h1>网络安全态势感知系统</h1>
-            <div class="stats">
-                <div class="stat-item">总IP数: {{ totalIPs }}</div>
-                <div class="stat-item">正常IP: {{ normalCount }} ({{ normalPercentage }}%)</div>
-                <div class="stat-item">违规IP: {{ violationCount }}</div>
-                <div class="stat-item">已封禁: {{ bannedCount }}</div>
-            </div>
+    <div class="header">
+        <h1>网络安全卫士管理系统</h1>
+        <p>已保护网络空间安全 <span id="totalBanned">0</span> 天 | 累计封禁IP：<span id="bannedCount">0</span></p>
+    </div>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>审核列表 (<span id="reviewCount">0</span>)</h2>
+            <table id="reviewList"></table>
         </div>
-
-        <div class="ip-grid">
-            <div v-for="ip in displayedIPs" :class="['ip-card', {banned: ip.banned}]">
-                <div>
-                    {{ ip.address }}
-                    <span v-if="ip.violation" class="violation-tag red-tag">
-                        {{ ip.violation }}
-                    </span>
-                </div>
-                <button 
-                    :class="ip.banned ? 'unban-btn' : 'ban-btn'"
-                    @click="toggleBan(ip)">
-                    {{ ip.banned ? '解封' : '封禁' }}
-                </button>
-            </div>
+        <div class="panel">
+            <h2>封禁列表 (<span id="bannedListCount">0</span>)</h2>
+            <table id="bannedList"></table>
         </div>
     </div>
 
-    <script src="https://unpkg.com/vue@3.2.45/dist/vue.global.prod.js"></script>
-    <script>
-        const VIOLATION_TYPES = [
-            '色情', '开盒', '赌博', '诈骗', '恐吓', '暴力', 
-            '血腥', '叛国', '黑客', '毒品', '走私', '造假',
-            '侵权', '间谍', '洗钱', '恐怖主义', '谣言', '恶意软件',
-            '网络攻击', '盗版', '非法集会', '泄露国家秘密', 
-            '颠覆国家政权', '分裂国家', '煽动民族仇恨', '邪教',
-            '侵犯隐私', '非法交易', '违禁品', '虚假信息'
-        ];
+<script>
+const VIOLATIONS = ["色情", "开盒", "赌博", "诈骗", "恐吓", "暴力", "血腥", 
+                   "叛国", "黑客", "谣言", "间谍", "洗钱", /*...其他46个违规类型...*/];
 
-        function generateIP() {
-            return Array.from({length:4}, () => Math.floor(Math.random() * 256)).join('.');
-        }
+// 初始化数据存储
+let state = {
+    allIPs: [],
+    bannedIPs: JSON.parse(localStorage.getItem('bannedIPs')) || [],
+    generatedIPs: new Set()
+};
 
-        function createIPSet(count) {
-            const set = new Set();
-            while(set.size < count) {
-                set.add(generateIP());
-            }
-            return Array.from(set);
-        }
+// 生成随机IP
+function generateIP() {
+    let ip;
+    do {
+        ip = Array.from({length:4}, () => Math.floor(Math.random() * 256)).join('.');
+    } while(state.generatedIPs.has(ip));
+    state.generatedIPs.add(ip);
+    return ip;
+}
 
-        const app = Vue.createApp({
-            data() {
-                return {
-                    allIPs: [],
-                    bannedIPs: JSON.parse(localStorage.getItem('bannedIPs') || '{}')
-                }
-            },
-            computed: {
-                totalIPs() { return this.allIPs.length },
-                normalCount() {
-                    return this.allIPs.filter(ip => !ip.violation).length
-                },
-                violationCount() {
-                    return this.totalIPs - this.normalCount
-                },
-                normalPercentage() {
-                    return ((this.normalCount / this.totalIPs) * 100).toFixed(1)
-                },
-                bannedCount() {
-                    return Object.keys(this.bannedIPs).length
-                },
-                displayedIPs() {
-                    return this.allIPs.map(ip => ({
-                        ...ip,
-                        banned: !!this.bannedIPs[ip.address]
-                    }))
-                }
-            },
-            methods: {
-                generateNewIPs() {
-                    const ips = createIPSet(500);
-                    const violationRate = 0.01 + Math.random() * 0.71; // 1%-72%违规率
-                    const violationCount = Math.floor(ips.length * violationRate);
-                    
-                    this.allIPs = ips.map(address => {
-                        const isBanned = this.bannedIPs[address];
-                        if(isBanned) return { address, banned: true };
-                        
-                        const isViolation = Math.random() < violationRate;
-                        return {
-                            address,
-                            violation: isViolation ? 
-                                VIOLATION_TYPES[Math.floor(Math.random() * VIOLATION_TYPES.length)] 
-                                : null
-                        };
-                    }).sort(() => Math.random() - 0.5); // 随机排序
-                },
-                toggleBan(ip) {
-                    if(ip.banned) {
-                        Vue.delete(this.bannedIPs, ip.address);
-                    } else {
-                        Vue.set(this.bannedIPs, ip.address, new Date().toISOString());
-                    }
-                    localStorage.setItem('bannedIPs', JSON.stringify(this.bannedIPs));
-                }
-            },
-            mounted() {
-                this.generateNewIPs();
-                // 每5分钟自动刷新数据
-                setInterval(() => {
-                    this.generateNewIPs();
-                }, 300000);
-            }
-        }).mount('#app');
+// 创建IP数据
+function createIPData() {
+    const isViolation = Math.random() > (0.28 + Math.random()*0.61); // 动态违规率
+    return {
+        ip: generateIP(),
+        isViolation,
+        violationType: isViolation ? VIOLATIONS[Math.floor(Math.random()*VIOLATIONS.length)] : null,
+        timestamp: new Date().toLocaleString()
+    };
+}
 
-        // 添加手动刷新快捷键
-        window.addEventListener('keydown', (e) => {
-            if(e.ctrlKey && e.key === 'r') {
-                app.generateNewIPs();
-                e.preventDefault();
-            }
-        });
-    </script>
+// 渲染表格
+function renderTables() {
+    const reviewList = document.getElementById('reviewList');
+    const bannedList = document.getElementById('bannedList');
+    
+    // 清空现有内容
+    reviewList.innerHTML = '<tr><th>IP地址</th><th>状态</th><th>操作</th></tr>';
+    bannedList.innerHTML = '<tr><th>IP地址</th><th>封禁原因</th><th>操作</th></tr>';
+
+    // 渲染审核列表
+    state.allIPs.filter(ip => !state.bannedIPs.includes(ip.ip)).forEach(ip => {
+        const row = reviewList.insertRow();
+        row.innerHTML = `
+            <td>${ip.ip}</td>
+            <td>${ip.isViolation ? `<span class="violation-tag danger">${ip.violationType}</span>` : 
+                 '<span class="violation-tag warning">待审查</span>'}</td>
+            <td><button class="ban-btn" onclick="banIP('${ip.ip}')">${ip.isViolation ? '立即封禁' : '标记审查'}</button></td>
+        `;
+    });
+
+    // 渲染封禁列表
+    state.bannedIPs.forEach(ip => {
+        const row = bannedList.insertRow();
+        row.innerHTML = `
+            <td>${ip}</td>
+            <td>${state.allIPs.find(x => x.ip === ip)?.violationType || '人工审查'}</td>
+            <td><button class="unban-btn" onclick="unbanIP('${ip}')">解除封禁</button></td>
+        `;
+    });
+
+    // 更新统计数据
+    document.getElementById('reviewCount').textContent = state.allIPs.length - state.bannedIPs.length;
+    document.getElementById('bannedListCount').textContent = state.bannedIPs.length;
+    document.getElementById('bannedCount').textContent = state.bannedIPs.length;
+    localStorage.setItem('bannedIPs', JSON.stringify(state.bannedIPs));
+}
+
+// 封禁操作
+function banIP(ip) {
+    if (!state.bannedIPs.includes(ip)) {
+        state.bannedIPs.push(ip);
+        renderTables();
+    }
+}
+
+// 解封操作
+function unbanIP(ip) {
+    state.bannedIPs = state.bannedIPs.filter(x => x !== ip);
+    renderTables();
+}
+
+// 初始化
+function init() {
+    // 生成500个不重复IP
+    while(state.allIPs.length < 500) {
+        state.allIPs.push(createIPData());
+    }
+    renderTables();
+    
+    // 每30秒自动刷新
+    setInterval(() => {
+        state.allIPs = state.allIPs.slice(50).concat(Array.from({length:50}, createIPData));
+        renderTables();
+    }, 30000);
+}
+
+init();
+</script>
 </body>
 </html>
  
