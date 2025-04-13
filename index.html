@@ -1,0 +1,126 @@
+ 
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>网络安全管理系统_极速版</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .ip-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .ip-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .violation {
+            background-color: #ffe6e6;
+            border-color: #ff4444;
+        }
+        .normal {
+            background-color: #e6ffe6;
+            border-color: #44ff44;
+        }
+        .ban-btn {
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .ban-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .violation-reason {
+            color: #ff4444;
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>网络安全监控列表（随机20个IP）</h2>
+    <div class="ip-list" id="ipList"></div>
+
+    <script>
+        // 从localStorage获取已封禁的IP列表
+        let bannedIPs = JSON.parse(localStorage.getItem('bannedIPs')) || [];
+
+        // 生成随机IP地址
+        function generateRandomIP() {
+            return Array.from({length: 4}, () => Math.floor(Math.random() * 256)).join('.');
+        }
+
+        // 生成IP列表
+        function generateIPList() {
+            const ipList = [];
+            const generatedIPs = new Set();
+
+            while (ipList.length < 20) {
+                const ip = generateRandomIP();
+                // 确保IP不在封禁列表且不重复
+                if (!bannedIPs.includes(ip) && !generatedIPs.has(ip)) {
+                    generatedIPs.add(ip);
+                    // 随机生成违规信息（30%概率违规）
+                    const isViolation = Math.random() < 0.3;
+                    const reason = isViolation ? 
+                        (Math.random() < 0.7 ? '赌博' : '色情') : '';
+                    
+                    ipList.push({ ip, isViolation, reason });
+                }
+            }
+            return ipList;
+        }
+
+        // 渲染IP列表
+        function renderIPList() {
+            const container = document.getElementById('ipList');
+            container.innerHTML = '';
+            const ipList = generateIPList();
+
+            ipList.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `ip-item ${item.isViolation ? 'violation' : 'normal'}`;
+                
+                div.innerHTML = `
+                    <div>
+                        <strong>${item.ip}</strong>
+                        ${item.isViolation ? 
+                            `<span class="violation-reason">违规原因：${item.reason}</span>` : 
+                            '<span>正常</span>'}
+                    </div>
+                    <button class="ban-btn" data-ip="${item.ip}">封禁</button>
+                `;
+
+                container.appendChild(div);
+            });
+
+            // 添加封禁事件监听
+            document.querySelectorAll('.ban-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const ipToBan = this.dataset.ip;
+                    if (!bannedIPs.includes(ipToBan)) {
+                        bannedIPs.push(ipToBan);
+                        localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
+                        renderIPList(); // 重新渲染列表
+                    }
+                });
+            });
+        }
+
+        // 初始化
+        renderIPList();
+    </script>
+</body>
+</html>
+ 
