@@ -3,24 +3,32 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>网络安全管理系统_极速版</title>
+    <title>网络安全管理系统</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+        }
+        .container {
+            height: 90vh;
+            overflow-y: auto;
         }
         .ip-list {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
         }
-        .ip-item {
+        .ip-item, .banned-item {
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 5px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 5px;
         }
         .violation {
             background-color: #ffe6e6;
@@ -38,22 +46,52 @@
             border-radius: 3px;
             cursor: pointer;
         }
-        .ban-btn:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
+        .unban-btn {
+            background-color: #44cc44;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
         }
         .violation-reason {
             color: #ff4444;
             margin: 0 10px;
+            font-size: 0.9em;
+        }
+        .banned-list {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        h3 {
+            margin-top: 0;
+            color: #666;
         }
     </style>
 </head>
 <body>
-    <h2>网络安全监控列表</h2>
-    <div class="ip-list" id="ipList"></div>
+    <div class="container">
+        <h2>网络安全监控列表</h2>
+        <div class="ip-list" id="ipList"></div>
+    </div>
+
+    <div class="banned-list">
+        <h3>已封禁 IP 列表（共 <span id="bannedCount">0</span> 个）</h3>
+        <div id="bannedList"></div>
+    </div>
 
     <script>
-        // 从localStorage获取已封禁的IP列表
+        // 违规类型配置
+        const VIOLATION_TYPES = [
+            { type: '赌博', color: '#ff4444' },
+            { type: '色情', color: '#ff44aa' },
+            { type: '诈骗', color: '#ff8844' },
+            { type: '钓鱼', color: '#44aaff' },
+            { type: '暴力', color: '#aa44ff' }
+        ];
+
+        // 封禁管理
         let bannedIPs = JSON.parse(localStorage.getItem('bannedIPs')) || [];
 
         // 生成随机IP地址
@@ -65,18 +103,24 @@
         function generateIPList() {
             const ipList = [];
             const generatedIPs = new Set();
+            let attempts = 0;
 
-            while (ipList.length < 20) {
+            while (ipList.length < 100 && attempts < 500) {
+                attempts++;
                 const ip = generateRandomIP();
-                // 确保IP不在封禁列表且不重复
                 if (!bannedIPs.includes(ip) && !generatedIPs.has(ip)) {
                     generatedIPs.add(ip);
-                    // 随机生成违规信息（30%概率违规）
-                    const isViolation = Math.random() < 0.3;
-                    const reason = isViolation ? 
-                        (Math.random() < 0.7 ? '赌博' : '色情') : '';
+                    // 40%概率违规
+                    const isViolation = Math.random() < 0.4;
+                    const violation = isViolation ? 
+                        VIOLATION_TYPES[Math.floor(Math.random() * VIOLATION_TYPES.length)] : null;
                     
-                    ipList.push({ ip, isViolation, reason });
+                    ipList.push({ 
+                        ip, 
+                        isViolation,
+                        reason: violation?.type || '',
+                        color: violation?.color || 'transparent'
+                    });
                 }
             }
             return ipList;
@@ -96,7 +140,9 @@
                     <div>
                         <strong>${item.ip}</strong>
                         ${item.isViolation ? 
-                            `<span class="violation-reason">违规原因：${item.reason}</span>` : 
+                            `<span class="violation-reason" style="border-left: 3px solid ${item.color}; padding-left: 8px;">
+                                违规原因：${item.reason}
+                            </span>` : 
                             '<span>正常</span>'}
                     </div>
                     <button class="ban-btn" data-ip="${item.ip}">封禁</button>
@@ -105,21 +151,52 @@
                 container.appendChild(div);
             });
 
-            // 添加封禁事件监听
+            // 封禁事件
             document.querySelectorAll('.ban-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const ipToBan = this.dataset.ip;
                     if (!bannedIPs.includes(ipToBan)) {
                         bannedIPs.push(ipToBan);
                         localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
-                        renderIPList(); // 重新渲染列表
+                        renderIPList();
+                        renderBannedList();
                     }
+                });
+            });
+        }
+
+        // 渲染封禁列表
+        function renderBannedList() {
+            const container = document.getElementById('bannedList');
+            const countSpan = document.getElementById('bannedCount');
+            container.innerHTML = '';
+            countSpan.textContent = bannedIPs.length;
+
+            bannedIPs.forEach(ip => {
+                const div = document.createElement('div');
+                div.className = 'banned-item';
+                div.innerHTML = `
+                    <span>${ip}</span>
+                    <button class="unban-btn" data-ip="${ip}">解封</button>
+                `;
+                container.appendChild(div);
+            });
+
+            // 解封事件
+            document.querySelectorAll('.unban-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const ipToUnban = this.dataset.ip;
+                    bannedIPs = bannedIPs.filter(ip => ip !== ipToUnban);
+                    localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
+                    renderIPList();
+                    renderBannedList();
                 });
             });
         }
 
         // 初始化
         renderIPList();
+        renderBannedList();
     </script>
 </body>
 </html>
