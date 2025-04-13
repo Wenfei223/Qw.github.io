@@ -5,199 +5,348 @@
     <meta charset="UTF-8">
     <title>网络安全管理系统</title>
     <style>
+        :root {
+            --primary-color: #2c3e50;
+            --danger-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f1c40f;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
             padding: 20px;
+            background-color: #f5f6fa;
+        }
+
+        .dashboard {
             display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 120px;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
         }
-        .container {
-            height: 90vh;
-            overflow-y: auto;
+
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
         }
-        .ip-list {
+
+        .main-content {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+            gap: 20px;
         }
-        .ip-item, .banned-item {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .ip-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .ip-table th, 
+        .ip-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .ip-table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .violation-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .pagination {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 5px;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
         }
-        .violation {
-            background-color: #ffe6e6;
-            border-color: #ff4444;
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
         }
-        .normal {
-            background-color: #e6ffe6;
-            border-color: #44ff44;
-        }
-        .ban-btn {
-            background-color: #ff4444;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        .unban-btn {
-            background-color: #44cc44;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        .violation-reason {
-            color: #ff4444;
-            margin: 0 10px;
-            font-size: 0.9em;
-        }
-        .banned-list {
-            background-color: #f5f5f5;
+
+        .stat-item {
+            text-align: center;
             padding: 15px;
+            background: #f8f9fa;
             border-radius: 8px;
         }
-        h3 {
-            margin-top: 0;
-            color: #666;
+
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .search-box {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 100%;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>网络安全监控列表</h2>
-        <div class="ip-list" id="ipList"></div>
-    </div>
+    <div class="dashboard">
+        <div class="sidebar">
+            <h2>控制面板</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div>总IP数量</div>
+                    <div id="totalIPs">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>违规数量</div>
+                    <div id="violationCount">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>封禁数量</div>
+                    <div id="bannedCount">0</div>
+                </div>
+            </div>
+            
+            <h3 style="margin-top:20px;">快速操作</h3>
+            <button class="btn btn-danger" onclick="clearAllBans()">清空封禁</button>
+            <button class="btn" onclick="refreshList()" style="margin-top:10px;">刷新列表</button>
+        </div>
 
-    <div class="banned-list">
-        <h3>已封禁 IP 列表（共 <span id="bannedCount">0</span> 个）</h3>
-        <div id="bannedList"></div>
-    </div>
-
-    <script>
-        // 违规类型配置
-        const VIOLATION_TYPES = [
-            { type: '赌博', color: '#ff4444' },
-            { type: '色情', color: '#ff44aa' },
-            { type: '诈骗', color: '#ff8844' },
-            { type: '钓鱼', color: '#44aaff' },
-            { type: '暴力', color: '#aa44ff' }
-        ];
-
-        // 封禁管理
-        let bannedIPs = JSON.parse(localStorage.getItem('bannedIPs')) || [];
-
-        // 生成随机IP地址
-        function generateRandomIP() {
-            return Array.from({length: 4}, () => Math.floor(Math.random() * 256)).join('.');
-        }
-
-        // 生成IP列表
-        function generateIPList() {
-            const ipList = [];
-            const generatedIPs = new Set();
-            let attempts = 0;
-
-            while (ipList.length < 100 && attempts < 500) {
-                attempts++;
-                const ip = generateRandomIP();
-                if (!bannedIPs.includes(ip) && !generatedIPs.has(ip)) {
-                    generatedIPs.add(ip);
-                    // 40%概率违规
-                    const isViolation = Math.random() < 0.4;
-                    const violation = isViolation ? 
-                        VIOLATION_TYPES[Math.floor(Math.random() * VIOLATION_TYPES.length)] : null;
-                    
-                    ipList.push({ 
-                        ip, 
-                        isViolation,
-                        reason: violation?.type || '',
-                        color: violation?.color || 'transparent'
-                    });
-                }
-            }
-            return ipList;
-        }
-
-        // 渲染IP列表
-        function renderIPList() {
-            const container = document.getElementById('ipList');
-            container.innerHTML = '';
-            const ipList = generateIPList();
-
-            ipList.forEach(item => {
-                const div = document.createElement('div');
-                div.className = `ip-item ${item.isViolation ? 'violation' : 'normal'}`;
+        <div class="main-content">
+            <div class="card">
+                <div class="filters">
+                    <input type="text" class="search-box" placeholder="搜索IP或原因..." id="searchInput">
+                    <select class="btn" id="violationFilter">
+                        <option value="">所有状态</option>
+                        <option value="normal">正常</option>
+                        <option value="violation">违规</option>
+                    </select>
+                    <select class="btn" id="typeFilter">
+                        <option value="">所有类型</option>
+                    </select>
+                </div>
                 
-                div.innerHTML = `
-                    <div>
-                        <strong>${item.ip}</strong>
-                        ${item.isViolation ? 
-                            `<span class="violation-reason" style="border-left: 3px solid ${item.color}; padding-left: 8px;">
-                                违规原因：${item.reason}
-                            </span>` : 
-                            '<span>正常</span>'}
-                    </div>
-                    <button class="ban-btn" data-ip="${item.ip}">封禁</button>
-                `;
+                <table class="ip-table">
+                    <thead>
+                        <tr>
+                            <th>IP地址</th>
+                            <th>状态</th>
+                            <th>违规原因</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ipList">
+                        <!-- IP列表动态生成 -->
+                    </tbody>
+                </table>
+                
+                <div class="pagination">
+                    <button class="btn" onclick="changePage(-1)">上一页</button>
+                    <span id="currentPage">第1页</span>
+                    <button class="btn" onclick="changePage(1)">下一页</button>
+                </div>
+            </div>
 
-                container.appendChild(div);
-            });
+            <div class="card">
+                <h3>封禁列表管理</h3>
+                <table class="ip-table">
+                    <thead>
+                        <tr>
+                            <th>已封禁IP</th>
+                            <th>操作时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bannedList">
+                        <!-- 封禁列表动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-            // 封禁事件
-            document.querySelectorAll('.ban-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const ipToBan = this.dataset.ip;
-                    if (!bannedIPs.includes(ipToBan)) {
-                        bannedIPs.push(ipToBan);
-                        localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
-                        renderIPList();
-                        renderBannedList();
-                    }
-                });
-            });
+<script>
+    // 违规类型配置
+    const VIOLATION_TYPES = [
+        { type: '赌博', color: '#e74c3c' },
+        { type: '色情', color: '#9b59b6' },
+        { type: '诈骗', color: '#f1c40f' },
+        { type: '钓鱼', color: '#3498db' },
+        { type: '暴力', color: '#e67e22' }
+    ];
+
+    // 系统配置
+    const config = {
+        pageSize: 20,
+        currentPage: 1,
+        totalPages: 1
+    };
+
+    // 数据存储
+    let bannedIPs = JSON.parse(localStorage.getItem('bannedIPs')) || [];
+    let currentIPList = [];
+
+    // 初始化过滤器
+    function initFilters() {
+        const typeFilter = document.getElementById('typeFilter');
+        VIOLATION_TYPES.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.type;
+            option.textContent = type.type;
+            typeFilter.appendChild(option);
+        });
+    }
+
+    // 生成随机IP
+    function generateRandomIP() {
+        return Array.from({length: 4}, () => Math.floor(Math.random() * 256)).join('.');
+    }
+
+    // 生成IP列表
+    function generateIPList() {
+        const ips = new Set();
+        while(ips.size < 100) {
+            const ip = generateRandomIP();
+            if(!bannedIPs.includes(ip)) ips.add(ip);
         }
+        return Array.from(ips).map(ip => ({
+            ip,
+            isViolation: Math.random() < 0.4,
+            reason: Math.random() < 0.4 ? 
+                VIOLATION_TYPES[Math.floor(Math.random() * VIOLATION_TYPES.length)] : null,
+            timestamp: new Date()
+        }));
+    }
 
-        // 渲染封禁列表
-        function renderBannedList() {
-            const container = document.getElementById('bannedList');
-            const countSpan = document.getElementById('bannedCount');
-            container.innerHTML = '';
-            countSpan.textContent = bannedIPs.length;
+    // 渲染IP列表
+    function renderIPList() {
+        const start = (config.currentPage - 1) * config.pageSize;
+        const end = start + config.pageSize;
+        const filtered = currentIPList.filter(ip => {
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('violationFilter').value;
+            const typeFilter = document.getElementById('typeFilter').value;
+            
+            return (
+                (ip.ip.includes(searchText) || 
+                (ip.reason?.type.toLowerCase().includes(searchText) || '')) &&
+                (statusFilter === '' || 
+                (statusFilter === 'violation' && ip.isViolation) ||
+                (statusFilter === 'normal' && !ip.isViolation)) &&
+                (typeFilter === '' || 
+                (ip.reason?.type === typeFilter))
+            );
+        });
 
-            bannedIPs.forEach(ip => {
-                const div = document.createElement('div');
-                div.className = 'banned-item';
-                div.innerHTML = `
-                    <span>${ip}</span>
-                    <button class="unban-btn" data-ip="${ip}">解封</button>
-                `;
-                container.appendChild(div);
-            });
+        config.totalPages = Math.ceil(filtered.length / config.pageSize);
+        const paged = filtered.slice(start, end);
 
-            // 解封事件
-            document.querySelectorAll('.unban-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const ipToUnban = this.dataset.ip;
-                    bannedIPs = bannedIPs.filter(ip => ip !== ipToUnban);
-                    localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
-                    renderIPList();
-                    renderBannedList();
-                });
-            });
+        const tbody = document.getElementById('ipList');
+        tbody.innerHTML = paged.map(ip => `
+            <tr>
+                <td>${ip.ip}</td>
+                <td>${ip.isViolation ? 
+                    `<span class="violation-tag" style="background:${ip.reason.color}">违规</span>` : 
+                    '<span>正常</span>'}
+                </td>
+                <td>${ip.reason?.type || ''}</td>
+                <td>
+                    ${ip.isViolation ? 
+                        `<button class="btn btn-danger" onclick="banIP('${ip.ip}')">封禁` : 
+                        '<button disabled class="btn">正常</button>'}
+                </td>
+            </tr>
+        `).join('');
+
+        updateStats();
+        document.getElementById('currentPage').textContent = `第${config.currentPage}页`;
+    }
+
+    // 更新统计信息
+    function updateStats() {
+        document.getElementById('totalIPs').textContent = currentIPList.length;
+        document.getElementById('violationCount').textContent = 
+            currentIPList.filter(ip => ip.isViolation).length;
+        document.getElementById('bannedCount').textContent = bannedIPs.length;
+    }
+
+    // 封禁操作
+    function banIP(ip) {
+        if(!bannedIPs.includes(ip)) {
+            bannedIPs.push(ip);
+            localStorage.setItem('bannedIPs', JSON.stringify(bannedIPs));
+            currentIPList = currentIPList.filter(item => item.ip !== ip);
+            renderIPList();
+            renderBannedList();
         }
+    }
 
-        // 初始化
+    // 清空封禁
+    function clearAllBans() {
+        if(confirm('确定要清空所有封禁记录吗？')) {
+            bannedIPs = [];
+            localStorage.removeItem('bannedIPs');
+            currentIPList = generateIPList();
+            renderIPList();
+            renderBannedList();
+        }
+    }
+
+    // 分页功能
+    function changePage(delta) {
+        const newPage = config.currentPage + delta;
+        if(newPage > 0 && newPage <= config.totalPages) {
+            config.currentPage = newPage;
+            renderIPList();
+        }
+    }
+
+    // 刷新列表
+    function refreshList() {
+        currentIPList = generateIPList();
+        config.currentPage = 1;
         renderIPList();
-        renderBannedList();
-    </script>
+    }
+
+    // 初始化
+    initFilters();
+    refreshList();
+    renderBannedList();
+</script>
 </body>
 </html>
  
